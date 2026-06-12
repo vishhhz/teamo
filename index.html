@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Varrendo a Lua</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Circular', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      background-color: #1a6b62;
+      color: #fff;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* ── TOP BAR ── */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      flex-shrink: 0;
+    }
+    .top-bar .title {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    .top-bar .icons {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+    }
+    .top-bar .icons svg {
+      width: 20px; height: 20px;
+      fill: none; stroke: #fff;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      cursor: pointer;
+      opacity: 0.85;
+    }
+    .top-bar .icons svg:hover { opacity: 1; }
+
+    /* ── MAIN CONTENT ── */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      overflow: hidden;
+      padding: 0 20px 10px;
+    }
+
+    .close-btn {
+      width: 36px; height: 36px;
+      background: rgba(0,0,0,0.55);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      margin-bottom: 14px;
+      flex-shrink: 0;
+    }
+    .close-btn svg {
+      width: 16px; height: 16px;
+      fill: none; stroke: #fff;
+      stroke-width: 2.2;
+      stroke-linecap: round;
+    }
+
+    /* ── ALBUM CARD ── */
+    .album-card {
+      position: relative;
+      width: 260px;
+      flex-shrink: 0;
+    }
+    .album-card img {
+      width: 100%;
+      border-radius: 4px;
+      display: block;
+      object-fit: cover;
+      aspect-ratio: 3/4;
+    }
+    .album-card .overlay-text {
+      position: absolute;
+      bottom: 22%;
+      left: 0; right: 0;
+      text-align: center;
+      padding: 0 12px;
+    }
+    .overlay-text .listen-label {
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #fff;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    }
+    .overlay-text .album-name {
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #fff;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    }
+    .kodak-strip {
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      color: rgba(255,255,255,0.6);
+      text-transform: uppercase;
+      position: absolute;
+      bottom: 6px;
+      right: 10px;
+    }
+
+    /* ── RELATED VIDEOS ── */
+    .related-section {
+      width: 100%;
+      padding: 10px 16px 6px;
+      flex-shrink: 0;
+    }
+    .related-section h3 {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .related-scroll {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      scrollbar-width: none;
+    }
+    .related-scroll::-webkit-scrollbar { display: none; }
+    .related-thumb {
+      width: 120px;
+      flex-shrink: 0;
+      border-radius: 4px;
+      background: rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+    .related-thumb img {
+      width: 100%;
+      aspect-ratio: 16/9;
+      object-fit: cover;
+      display: block;
+    }
+    .related-thumb .thumb-placeholder {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: rgba(255,255,255,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .related-thumb .thumb-placeholder svg {
+      width: 22px; height: 22px;
+      fill: rgba(255,255,255,0.3);
+    }
+
+    /* ── BOTTOM PLAYER ── */
+    .player-bar {
+      background: #121212;
+      padding: 8px 16px 10px;
+      flex-shrink: 0;
+    }
+    .player-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .player-thumb {
+      width: 44px; height: 44px;
+      border-radius: 4px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .player-thumb img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+    .player-thumb-placeholder {
+      width: 44px; height: 44px;
+      border-radius: 4px;
+      background: #333;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .player-info { flex: 1; min-width: 0; }
+    .player-track {
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .player-artist {
+      font-size: 11px;
+      color: rgba(255,255,255,0.55);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .liked-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #1ed760;
+      flex-shrink: 0;
+      margin-left: 2px;
+    }
+
+    /* ── PLAYER CONTROLS ── */
+    .player-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 22px;
+    }
+    .ctrl-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      display: flex; align-items: center;
+    }
+    .ctrl-btn svg {
+      fill: rgba(255,255,255,0.65);
+      transition: fill 0.15s;
+    }
+    .ctrl-btn:hover svg { fill: #fff; }
+    .play-btn svg { fill: #fff; }
+    .play-btn:hover svg { fill: #ddd; }
+
+    /* ── PROGRESS BAR ── */
+    .progress-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 8px 0 4px;
+    }
+    .time-label {
+      font-size: 10px;
+      color: rgba(255,255,255,0.5);
+      min-width: 28px;
+      text-align: center;
+    }
+    .progress-bar {
+      flex: 1;
+      height: 3px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 2px;
+      cursor: pointer;
+      position: relative;
+    }
+    .progress-fill {
+      height: 100%;
+      background: #fff;
+      border-radius: 2px;
+      width: 2%;
+      transition: width 0.5s linear;
+    }
+
+    /* ── BOTTOM ICONS ROW ── */
+    .bottom-icons {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 14px;
+      padding-top: 4px;
+    }
+    .bottom-icons svg {
+      width: 18px; height: 18px;
+      fill: none; stroke: rgba(255,255,255,0.55);
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      cursor: pointer;
+    }
+    .bottom-icons svg:hover { stroke: #fff; }
+    .volume-slider {
+      width: 70px;
+      height: 3px;
+      accent-color: #fff;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <span class="title" id="page-title">Varrendo a Lua</span>
+    <div class="icons">
+      <!-- cast icon -->
+      <svg viewBox="0 0 24 24"><rect x="2" y="8" width="20" height="14" rx="2"/><path d="M2 16a6 6 0 0 1 6 6"/><path d="M2 20a2 2 0 0 1 2 2"/></svg>
+      <!-- save icon -->
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="9 3 9 8 15 8"/><path d="M9 21v-8h6v8"/></svg>
+      <!-- user icon -->
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      <!-- menu icon -->
+      <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1" fill="#fff" stroke="none"/><circle cx="12" cy="12" r="1" fill="#fff" stroke="none"/><circle cx="19" cy="12" r="1" fill="#fff" stroke="none"/></svg>
+      <!-- expand icon -->
+      <svg viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <div class="close-btn">
+      <svg viewBox="0 0 16 16"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
+    </div>
+
+    <!-- ALBUM CARD -->
+    <div class="album-card">
+      <img id="cover-img" src="cover.jpg" alt="Capa do álbum" onerror="this.style.display='none'; document.getElementById('cover-placeholder').style.display='flex';" />
+      <div id="cover-placeholder" style="display:none; width:100%; aspect-ratio:3/4; background:rgba(0,0,0,0.3); border-radius:4px; align-items:center; justify-content:center;">
+        <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" stroke-linecap="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      </div>
+      <div class="overlay-text">
+        <div class="listen-label" id="overlay-listen">OUÇA O NOVO ÁLBUM</div>
+        <div class="album-name" id="overlay-album">"COISAS DE VIVER"</div>
+      </div>
+      <div class="kodak-strip" id="kodak-text">KODAK PORTRA 400</div>
+    </div>
+  </div>
+
+  <!-- RELATED VIDEOS -->
+  <div class="related-section">
+    <h3 id="related-title">Videoclipes relacionados</h3>
+    <div class="related-scroll">
+      <div class="related-thumb">
+        <div class="thumb-placeholder">
+          <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </div>
+      </div>
+      <div class="related-thumb">
+        <div class="thumb-placeholder">
+          <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </div>
+      </div>
+      <div class="related-thumb">
+        <div class="thumb-placeholder">
+          <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </div>
+      </div>
+      <div class="related-thumb">
+        <div class="thumb-placeholder">
+          <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </div>
+      </div>
+      <div class="related-thumb">
+        <div class="thumb-placeholder">
+          <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PLAYER BAR -->
+  <div class="player-bar">
+    <div class="player-top">
+      <div class="player-thumb">
+        <img id="player-thumb-img" src="cover.jpg" alt="capa" onerror="this.style.display='none'; document.getElementById('player-thumb-ph').style.display='flex';" />
+      </div>
+      <div id="player-thumb-ph" class="player-thumb-placeholder" style="display:none;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" stroke-linecap="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      </div>
+      <div class="player-info">
+        <div class="player-track" id="player-track">De Janeiro a Janeiro</div>
+        <div class="player-artist" id="player-artist">Roberta Campos, Nando Reis</div>
+      </div>
+      <div class="liked-dot"></div>
+    </div>
+
+    <!-- PROGRESS -->
+    <div class="progress-row">
+      <span class="time-label" id="time-cur">0:06</span>
+      <div class="progress-bar" id="progress-bar">
+        <div class="progress-fill" id="progress-fill" style="width:3%"></div>
+      </div>
+      <span class="time-label" id="time-total">3:10</span>
+    </div>
+
+    <!-- CONTROLS -->
+    <div class="player-controls">
+      <!-- shuffle -->
+      <button class="ctrl-btn" aria-label="Aleatório">
+        <svg width="18" height="18" viewBox="0 0 24 24"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>
+      </button>
+      <!-- previous -->
+      <button class="ctrl-btn" aria-label="Anterior">
+        <svg width="22" height="22" viewBox="0 0 24 24"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
+      </button>
+      <!-- play/pause -->
+      <button class="ctrl-btn play-btn" id="play-btn" aria-label="Pausar">
+        <svg id="play-icon" width="36" height="36" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="10" y1="15" x2="10" y2="9" stroke="#121212" stroke-width="2" stroke-linecap="round"/>
+          <line x1="14" y1="15" x2="14" y2="9" stroke="#121212" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <!-- next -->
+      <button class="ctrl-btn" aria-label="Próximo">
+        <svg width="22" height="22" viewBox="0 0 24 24"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+      </button>
+      <!-- repeat -->
+      <button class="ctrl-btn" aria-label="Repetir">
+        <svg width="18" height="18" viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+      </button>
+    </div>
+
+    <!-- BOTTOM ICONS -->
+    <div class="bottom-icons">
+      <svg viewBox="0 0 24 24" aria-label="Editar"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      <svg viewBox="0 0 24 24" aria-label="Fila"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      <svg viewBox="0 0 24 24" aria-label="Dispositivos"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      <!-- volume -->
+      <svg viewBox="0 0 24 24" aria-label="Volume"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+      <input class="volume-slider" type="range" min="0" max="100" value="70" aria-label="Volume" />
+      <svg viewBox="0 0 24 24" aria-label="Tela cheia"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+    </div>
+  </div>
+
+  <script>
+    // ── CONFIGURAÇÕES — edite aqui ──────────────────────────────────────────
+    const CONFIG = {
+      pageTitle:      "Varrendo a Lua",
+      overlayListen:  "OUÇA O NOVO ÁLBUM",
+      overlayAlbum:   '"COISAS DE VIVER"',
+      kodakText:      "KODAK PORTRA 400",
+      relatedTitle:   "Videoclipes relacionados",
+      playerTrack:    "De Janeiro a Janeiro",
+      playerArtist:   "Roberta Campos, Nando Reis",
+      coverImage:     "cover.jpg",   // coloque o arquivo de imagem na mesma pasta
+      totalTime:      "3:10",        // duração total
+      totalSeconds:   190,
+    };
+    // ────────────────────────────────────────────────────────────────────────
+
+    // Aplica config
+    document.getElementById("page-title").textContent      = CONFIG.pageTitle;
+    document.getElementById("overlay-listen").textContent  = CONFIG.overlayListen;
+    document.getElementById("overlay-album").textContent   = CONFIG.overlayAlbum;
+    document.getElementById("kodak-text").textContent      = CONFIG.kodakText;
+    document.getElementById("related-title").textContent   = CONFIG.relatedTitle;
+    document.getElementById("player-track").textContent    = CONFIG.playerTrack;
+    document.getElementById("player-artist").textContent   = CONFIG.playerArtist;
+    document.getElementById("time-total").textContent      = CONFIG.totalTime;
+    document.title = CONFIG.pageTitle;
+
+    // Imagem de capa
+    document.getElementById("cover-img").src           = CONFIG.coverImage;
+    document.getElementById("player-thumb-img").src    = CONFIG.coverImage;
+
+    // ── SIMULAÇÃO DO PLAYER ─────────────────────────────────────────────────
+    let playing = true;
+    let currentSec = 6;
+    const totalSec = CONFIG.totalSeconds;
+
+    function formatTime(s) {
+      const m = Math.floor(s / 60);
+      const ss = s % 60;
+      return m + ":" + String(ss).padStart(2, "0");
+    }
+    function updateProgress() {
+      const pct = (currentSec / totalSec) * 100;
+      document.getElementById("progress-fill").style.width = pct + "%";
+      document.getElementById("time-cur").textContent = formatTime(currentSec);
+    }
+
+    let timer = setInterval(() => {
+      if (playing && currentSec < totalSec) {
+        currentSec++;
+        updateProgress();
+      }
+    }, 1000);
+
+    // Clique na barra de progresso
+    document.getElementById("progress-bar").addEventListener("click", (e) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const ratio = (e.clientX - rect.left) / rect.width;
+      currentSec = Math.round(ratio * totalSec);
+      updateProgress();
+    });
+
+    // Botão play/pause
+    const playBtn = document.getElementById("play-btn");
+    const playIcon = document.getElementById("play-icon");
+    const pauseInner = `
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="10" y1="15" x2="10" y2="9" stroke="#121212" stroke-width="2" stroke-linecap="round"/>
+      <line x1="14" y1="15" x2="14" y2="9" stroke="#121212" stroke-width="2" stroke-linecap="round"/>
+    `;
+    const playInner = `
+      <circle cx="12" cy="12" r="10"/>
+      <polygon points="10 8 18 12 10 16 10 8" fill="#121212"/>
+    `;
+    playBtn.addEventListener("click", () => {
+      playing = !playing;
+      playIcon.innerHTML = playing ? pauseInner : playInner;
+      playBtn.setAttribute("aria-label", playing ? "Pausar" : "Reproduzir");
+    });
+
+    updateProgress();
+  </script>
+</body>
+</html>
